@@ -138,8 +138,9 @@ bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int port
 	if (!from_batch_e->ports_upgraded)
 		from_batch_e->upgrade_ports();
 
+	bool ispush = (isoutput && e->output_is_push(port)) || (!isoutput && e->input_is_push(port));
 	if (_verbose) {
-		if (e->output_is_push(port))
+		if (ispush)
 			click_chatter("Warning ! Push %s->%s is not compatible with batch. "
 					"Packets will be unbatched and that will reduce performances.",
 					from->name().c_str(),e->name().c_str());
@@ -150,7 +151,7 @@ bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int port
 	}
 
 	//If this is push, we try to create a re-batching bridge
-	if (e->output_is_push(port)) {
+	if (ispush) {
 		PushBatchPort* port = &(static_cast<BatchElement::PushBatchPort*>(from_batch_e->_ports[1])[from_port]);
 		PushToPushBatchVisitor v(&port->downstream_batches);
 		e->router()->visit(e,1,-1,&v);
