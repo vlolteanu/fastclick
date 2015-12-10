@@ -118,7 +118,7 @@ void BatchElement::PullBatchPort::bind_batchelement() {
     }
 }
 
-bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int,
+bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int port,
 		Element *from, int from_port, int) {
 
 	if (e->batch_mode() > Element::BATCH_MODE_NO) {
@@ -127,7 +127,11 @@ bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int,
 		batch_e->upgrade_ports();
 		if (_verbose)
 			click_chatter("%s is in batch mode",e->name().c_str());
-		return true;
+		if (isoutput) {
+			return e->output_is_push(port);
+		} else {
+			return e->input_is_pull(port);
+		}
 	}
 	BatchElement* from_batch_e = dynamic_cast<BatchElement*>(from);
 	assert(from_batch_e);
@@ -135,7 +139,7 @@ bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int,
 		from_batch_e->upgrade_ports();
 
 	if (_verbose) {
-		if (!isoutput)
+		if (e->output_is_push(port))
 			click_chatter("Warning ! Push %s->%s is not compatible with batch. "
 					"Packets will be unbatched and that will reduce performances.",
 					from->name().c_str(),e->name().c_str());
@@ -146,7 +150,7 @@ bool BatchElement::BatchModePropagate::visit(Element *e, bool isoutput, int,
 	}
 
 	//If this is push, we try to create a re-batching bridge
-	if (!isoutput) {
+	if (e->output_is_push(port)) {
 		PushBatchPort* port = &(static_cast<BatchElement::PushBatchPort*>(from_batch_e->_ports[1])[from_port]);
 		PushToPushBatchVisitor v(&port->downstream_batches);
 		e->router()->visit(e,1,-1,&v);
